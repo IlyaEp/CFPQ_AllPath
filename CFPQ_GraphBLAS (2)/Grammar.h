@@ -62,7 +62,7 @@ public:
         }
         high_resolution_clock::time_point end_time = high_resolution_clock::now();
         milliseconds elapsed_secs = duration_cast<milliseconds>(end_time - begin_time);
-        std::cout << elapsed_secs.count() << " ";
+        //std::cout << elapsed_secs.count() << " ";
         return static_cast<unsigned int>(elapsed_secs.count());
     }
 

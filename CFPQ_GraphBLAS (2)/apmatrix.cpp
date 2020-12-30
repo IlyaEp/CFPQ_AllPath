@@ -21,8 +21,8 @@ PathIndex* ApMatrix::get_bit(unsigned int row, unsigned col) {
 ApMatrix::~ApMatrix() {
     GrB_Matrix_clear(m);
     GrB_Matrix_free(&m);
-    GrB_Monoid_free(&IndexType_Monoid);
-    GrB_Semiring_free(&IndexType_Semiring);
+    //GrB_Monoid_free(&IndexType_Monoid);
+    //GrB_Semiring_free(&IndexType_Semiring);
 }
 
 uint32_t ApMatrix::get_nvals()
@@ -39,7 +39,7 @@ char* ApMatrix::get_elements()
     GrB_Index *J = static_cast<GrB_Index *>(malloc(nvals * sizeof(GrB_Index)));
     PathIndex *X = static_cast<PathIndex *>(malloc(nvals * sizeof(PathIndex)));
     GrB_Matrix_extractTuples_UDT(I, J, X, &nvals, m);
-    char* result = (char *)malloc(nvals*50*sizeof(char));    //???
+    char* result = (char *)malloc(nvals*25*sizeof(char));    //???
     std::string start = "";
     strcpy(result, start.c_str());
     for (int k = 0; k < nvals; ++k)

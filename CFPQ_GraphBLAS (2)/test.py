@@ -6,49 +6,85 @@ from time import time
 
 lib = ctypes.CDLL('./libAllPaths.so')
 
-#libc = ctypes.CDLL(ctypes.util.find_library("c"))
-
 LP_c_char = ctypes.POINTER(ctypes.c_char)
-LP_LP_c_char = ctypes.POINTER(LP_c_char)
 
 lib.grammar_new.argtypes = [LP_c_char]
 lib.grammar_new.restype = ctypes.c_void_p
 
 lib.grammar_del.argtypes = [ctypes.c_void_p]
 
-lib.intersect.argtypes = [ctypes.c_void_p, LP_LP_c_char]
+lib.graph_new.argtypes = [LP_c_char]
+lib.graph_new.restype = ctypes.c_void_p
+
+lib.graph_del.argtypes = [ctypes.c_void_p]
+
+lib.intersect.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
 lib.get_elements.argtypes = [ctypes.c_void_p, LP_c_char]
-lib.get_elements.restype = ctypes.c_char_p
+lib.get_elements.restype = ctypes.c_void_p
+
+lib.string_del.argtypes = [ctypes.c_void_p]
 
 lib.getpaths.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, LP_c_char, ctypes.c_int]
-lib.elements_del.argtypes = [ctypes.c_char_p]
+lib.getpaths.restype = ctypes.c_void_p
 
-def intersect(grammar, matrix, result):
+class MyAllPairsAllPaths:
+	def __init__(self):
+		lib.graphblas_init()
+		self.mygrammar = None # <- index storage
+		self.mygraph = None # <- graph storage
+	
+	def __del__(self):
+		if self.mygrammar:
+			lib.grammar_del(self.mygrammar)
+		if self.mygraph:
+			lib.graph_del(self.mygraph)
+		lib.graphblas_finalize()
+
+	def create_index(self, graph: str, grammar: str):
+		if self.mygrammar:
+			lib.grammar_del(self.mygrammar)
+			self.mygrammar = None
+		if self.mygraph:
+			lib.graph_del(self.mygraph)
+			self.mygraph = None
+		self.mygrammar, self.mygraph = intersect(graph, grammar)
+
+	def restore_paths(self, v, to, S, boundLen) -> [str]:
+		return getpaths(self.mygrammar, v, to, S, boundLen)	
+
+
+
+def intersect(matrix, grammar):
+    graph_obj = lib.graph_new(matrix.encode('utf-8'))
     grammar_obj = lib.grammar_new(grammar.encode('utf-8'))
-    argv = [matrix, result]
-
-    p = (LP_c_char*len(argv))()
-    for i, arg in enumerate(argv):  # not sys.argv, but argv!!!
-        enc_arg = arg.encode('utf-8')
-        p[i] = ctypes.create_string_buffer(enc_arg)
-
-    na = ctypes.cast(p, LP_LP_c_char)
-
-    lib.intersect(grammar_obj, na)
-    return grammar_obj
+    lib.intersect(grammar_obj, graph_obj)
+    return grammar_obj, graph_obj
 
 
 def getelements(grammar_obj, S):
     elements = lib.get_elements(grammar_obj, S.encode('utf-8'))
-    result = ctypes.c_char_p(elements).value
-    #libc.free(elements)
-    #lib.elements_del(elements)
+    result = ctypes.cast(elements, ctypes.c_char_p).value
+    lib.string_del(elements)
     return result.decode('utf-8')
 
-def getpaths(grammar_obj, i, j, S, k):
-    return lib.getpaths(grammar_obj, i, j, S.encode('utf-8'), k)
 
+def getpaths(grammar_obj, i, j, S, k):
+    paths = lib.getpaths(grammar_obj, i, j, S.encode('utf-8'), k)
+    result = ctypes.cast(paths, ctypes.c_char_p).value
+    lib.string_del(paths)
+    return result.decode('utf-8').split('\n')[:-1] #for last '\n'
+
+
+
+apap = MyAllPairsAllPaths()
+apap.create_index("matrix.txt","grammar.txt")
+print(apap.restore_paths(0, 0, "s", 20))
+print(apap.restore_paths(0, 0, "s", 40))
+apap.create_index("matrix.txt","grammar.txt")
+print(apap.restore_paths(0, 0, "s", 20))
+del apap
+exit(0)
 
 lib.graphblas_init()
 #start = time()
@@ -56,8 +92,8 @@ lib.graphblas_init()
 #finish = time()
 #print(str(finish - start))
 #print(getelements(mygrammar, "s"))
-#lib.graphblas_finalize()
 #lib.grammar_del(mygrammar)
+#lib.graphblas_finalize()
 #exit(0)
 
 
@@ -84,9 +120,9 @@ for elem in getelements(mygrammar, "s").split("\n"):
 #getpaths(mygrammar, 375, 375, "s", 20)
 #finish = time()
 #print(str(finish - start))
-#lib.elements_del(elements)
-lib.graphblas_finalize()
+#lib.string_del(elements)
 lib.grammar_del(mygrammar)
+lib.graphblas_finalize()
 exit(0)
 
 from tqdm import tqdm
@@ -106,7 +142,6 @@ for name_graph in tqdm(name_graphs):
     for i in range(rounds):
         lib.graphblas_init()
         mygrammar = intersect(name_grammar, "../../CFPQ-Tensor-CPU/Py_algo/Matr_algo/" + name_graph + ".txt", "result_matr/result_" + name_graph + ".txt")
-        #lib.graphblas_finalize()
         #lib.grammar_del(mygrammar)
         #lib.graphblas_finalize()
 
