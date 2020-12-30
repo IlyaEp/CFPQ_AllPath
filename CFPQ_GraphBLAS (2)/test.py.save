@@ -1,0 +1,51 @@
+import sys
+import ctypes
+
+from time import time
+
+lib = ctypes.CDLL('./libAllPaths.so')
+
+LP_c_char = ctypes.POINTER(ctypes.c_char)
+LP_LP_c_char = ctypes.POINTER(LP_c_char)
+
+lib.grammar_new.argtypes = [LP_c_char]
+lib.grammar_new.restype = ctypes.c_void_p
+
+lib.grammar_del.argtypes = [ctypes.c_void_p]
+
+lib.intersect.argtypes = [ctypes.c_void_p, LP_LP_c_char]
+lib.getpaths.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, LP_c_char, ctypes.c_int]
+
+def intersect(grammar, matrix, result):
+    grammar_obj = lib.grammar_new(grammar.encode('utf-8'))
+    argv = [matrix, result]
+
+    p = (LP_c_char*len(argv))()
+    for i, arg in enumerate(argv):  # not sys.argv, but argv!!!
+        enc_arg = arg.encode('utf-8')
+        p[i] = ctypes.create_string_buffer(enc_arg)
+
+    na = ctypes.cast(p, LP_LP_c_char)
+
+    lib.intersect(grammar_obj, na)
+    return grammar_obj
+
+
+def getpaths(grammar_obj, i, j, S, k):
+    lib.getpaths(grammar_obj, i, j, S.encode('utf-8'), k)
+
+
+
+lib.graphblas_init()
+start = time()
+mygrammar = intersect("g1.cnf", "pathways.txt", "result.txt")
+finish = time()
+
+print(str(finish - start))
+start = time()
+getpaths(mygrammar, 32, 32, "s", 100)
+inish = time()
+print(str(finish - start))
+lib.graphblas_finalize()
+lib.grammar_del(mygrammar)
+
